@@ -1,0 +1,39 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+ENV/
+
+# Caché de Python y archivos compilados
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Pruebas y cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Secretos, variables de entorno y configuración local de Streamlit
+.env
+.env.*
+.streamlit/secrets.toml
+secrets.toml
+*.pem
+*.key
+credentials.json
+
+# Archivos temporales de Excel y del sistema operativo
+~$*.xlsx
+~$*.xls
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Nota: inventario.xlsx NO debe excluirse porque es la fuente de datos de demostración V1
+!inventario.xlsx
+
