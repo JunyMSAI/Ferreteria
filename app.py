@@ -376,14 +376,36 @@ def cargar_y_validar_inventario(ruta_archivo: Path = INVENTARIO) -> pd.DataFrame
     return validar_dataframe_inventario(df_bruto)
 
 
-@st.cache_data(show_spinner=False)
-def obtener_inventario_cacheado(ruta_str: str) -> pd.DataFrame:
-    """Versión en caché de la lectura de inventario para Streamlit."""
+def obtener_firma_archivo(ruta_archivo: Path = INVENTARIO) -> tuple[int, int]:
+    """Obtiene (mtime_ns, st_size) del archivo para invalidar automáticamente la caché cuando cambia en disco."""
+    ruta_resuelta = Path(ruta_archivo)
+    try:
+        if ruta_resuelta.exists() and ruta_resuelta.is_file():
+            stat_info = ruta_resuelta.stat()
+            return (stat_info.st_mtime_ns, stat_info.st_size)
+    except OSError:
+        pass
+    return (0, 0)
+
+
+@st.cache_data(show_spinner=False, max_entries=2)
+def obtener_inventario_cacheado(
+    ruta_str: str,
+    mtime_ns: int = 0,
+    tamano_bytes: int = 0,
+) -> pd.DataFrame:
+    """Versión en caché de la lectura de inventario para Streamlit.
+
+    Incluye `mtime_ns` y `tamano_bytes` en la clave de caché para detectar
+    automáticamente cualquier actualización del archivo `inventario.xlsx` en disco.
+    """
+    _ = (mtime_ns, tamano_bytes)
     return cargar_y_validar_inventario(Path(ruta_str))
 
 
 def recargar_inventario() -> None:
     """Limpia la caché de datos de Streamlit para forzar una nueva lectura de inventario.xlsx."""
+    obtener_inventario_cacheado.clear()
     st.cache_data.clear()
 
 
@@ -961,6 +983,7 @@ def main() -> None:
         if st.button(t["reload_btn"], help=t["reload_help"], use_container_width=True):
             recargar_inventario()
             st.session_state.aviso_recarga = True
+            st.rerun()
 
     if st.session_state.aviso_recarga:
         st.toast(t["reload_ok"], icon="✅")
@@ -971,7 +994,12 @@ def main() -> None:
 
     # Cargar y validar el inventario antes de habilitar cualquier búsqueda
     try:
-        df_inventario = obtener_inventario_cacheado(str(INVENTARIO))
+        mtime_ns, tamano_bytes = obtener_firma_archivo(INVENTARIO)
+        df_inventario = obtener_inventario_cacheado(
+            str(INVENTARIO),
+            mtime_ns=mtime_ns,
+            tamano_bytes=tamano_bytes,
+        )
     except ErrorValidacionInventario as err_val:
         st.error(f"**{t['error_loading_title']}**\n\n{err_val}")
         st.info(t["error_loading_hint"])
