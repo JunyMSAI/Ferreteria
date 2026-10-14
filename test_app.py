@@ -210,6 +210,55 @@ class TestFerreteriaMSV1(unittest.TestCase):
         self.assertEqual(at.session_state["idioma"], "en")
         self.assertIn("Product Locator", at.title[0].value)
 
+    def test_12_recarga_y_actualizacion_cache_inventario(self) -> None:
+        """Caso 8 e Issue #3: Verifica que cambios en el archivo Excel invalidan la caché por firma (mtime/size) y mediante recargar_inventario()."""
+        self.assertEqual(app.obtener_firma_archivo(Path("no_existe_999.xlsx")), (0, 0))
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ruta_temp = Path(tmpdir) / "inventario_temp.xlsx"
+            df_v1 = self.df.copy()
+            df_v1.loc[df_v1["SKU"] == "FER-001", "Stock"] = 10
+            with pd.ExcelWriter(ruta_temp, engine="openpyxl") as writer:
+                df_v1.to_excel(writer, sheet_name=app.HOJA_INVENTARIO, index=False)
+
+            mtime1, size1 = app.obtener_firma_archivo(ruta_temp)
+            self.assertGreater(mtime1, 0)
+            self.assertGreater(size1, 0)
+
+            df_cargado_1 = app.obtener_inventario_cacheado(
+                str(ruta_temp), mtime_ns=mtime1, tamano_bytes=size1
+            )
+            stock_1 = int(df_cargado_1.loc[df_cargado_1["SKU"] == "FER-001", "Stock"].iloc[0])
+            self.assertEqual(stock_1, 10)
+
+            # Modificar el archivo en disco con nuevo Stock y texto adicional para cambiar mtime/size
+            df_v2 = self.df.copy()
+            df_v2.loc[df_v2["SKU"] == "FER-001", "Stock"] = 25
+            df_v2.loc[df_v2["SKU"] == "FER-001", "Descripcion"] = (
+                "Descripción actualizada para prueba de recarga Issue #3"
+            )
+            with pd.ExcelWriter(ruta_temp, engine="openpyxl") as writer:
+                df_v2.to_excel(writer, sheet_name=app.HOJA_INVENTARIO, index=False)
+
+            mtime2, size2 = app.obtener_firma_archivo(ruta_temp)
+            self.assertNotEqual((mtime1, size1), (mtime2, size2))
+
+            # Sin siquiera llamar a recargar_inventario(), la nueva firma obtiene los datos actualizados
+            df_cargado_2 = app.obtener_inventario_cacheado(
+                str(ruta_temp), mtime_ns=mtime2, tamano_bytes=size2
+            )
+            stock_2 = int(df_cargado_2.loc[df_cargado_2["SKU"] == "FER-001", "Stock"].iloc[0])
+            self.assertEqual(stock_2, 25)
+
+            # Verificar también que el botón «Recargar inventario» funciona en AppTest sin excepciones
+            from streamlit.testing.v1 import AppTest
+
+            at = AppTest.from_file("app.py").run()
+            botones_recarga = [b for b in at.button if "Recargar inventario" in b.label]
+            self.assertEqual(len(botones_recarga), 1)
+            botones_recarga[0].click().run()
+            self.assertEqual(len(at.exception), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
