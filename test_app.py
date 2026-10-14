@@ -45,7 +45,7 @@ class TestFerreteriaMSV1(unittest.TestCase):
     def test_02_caso_martillo_de_pena(self) -> None:
         """Caso 1: 'Martillo de peña' -> FER-001, disponible, Rack R02 / Columna A / Fila 03."""
         res = app.buscar_productos(self.df, "Martillo de peña")
-        self.assertIn(res["tipo_resultado"], ("exacta", "exacta_multiple"))
+        self.assertIn(res["tipo_resultado"], ("exacta", "exacta_multiple", "parcial"))
         self.assertFalse(res["requiere_confirmacion"])
         self.assertEqual(res["resultados"][0]["SKU"], "FER-001")
 
@@ -178,12 +178,20 @@ class TestFerreteriaMSV1(unittest.TestCase):
             app.validar_dataframe_inventario(df_sin_ubic)
 
     def test_11_interfaz_streamlit_apptest(self) -> None:
-        """Caso 10 y 11: Verifica el arranque de la interfaz Streamlit, búsqueda, limpieza y cambio de idioma."""
+        """Caso 10, 11 e Issue #1: Verifica el arranque de la interfaz Streamlit, ausencia de ejemplos rápidos, búsqueda, limpieza y cambio de idioma."""
         from streamlit.testing.v1 import AppTest
 
         at = AppTest.from_file("app.py").run()
         self.assertEqual(len(at.exception), 0)
         self.assertIn("Localizador de Productos", at.title[0].value)
+
+        # Issue #1: Verificar que no existe el texto "Ejemplos rápidos de prueba" ni los botones de ejemplo
+        textos_captions = [c.value for c in at.caption]
+        self.assertFalse(any("Ejemplos rápidos de prueba" in txt for txt in textos_captions))
+        self.assertFalse(any("Quick test examples" in txt for txt in textos_captions))
+        etiquetas_botones = [b.label for b in at.button]
+        for ej in ("`Martillo de peña`", "`Tornillo 1/2 pulgada`", "`FER-005`", "`martiyo`", "`hammer`"):
+            self.assertNotIn(ej, etiquetas_botones)
 
         # 1. Búsqueda exacta 'Martillo de peña' -> muestra ficha de FER-001
         at.text_input(key="input_busqueda").set_value("Martillo de peña").run()

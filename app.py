@@ -45,7 +45,6 @@ TITULO = "🛠️ FerreteríaMS AI"
 DESCRIPCION = (
     "Buscador de catálogo, existencias y ubicación física en tienda (Rack / Columna / Fila)."
 )
-EJEMPLOS = ["Martillo de peña", "Tornillo 1/2 pulgada", "FER-005", "martiyo", "hammer"]
 
 # Diccionario de internacionalización (Español predeterminado / Inglés)
 I18N: dict[str, dict[str, str]] = {
@@ -72,7 +71,6 @@ I18N: dict[str, dict[str, str]] = {
         "all_categories": "Todas las categorías",
         "search_btn": "🔎 Buscar",
         "clear_btn": "🧹 Limpiar búsqueda / Nueva búsqueda",
-        "examples_label": "Ejemplos rápidos de prueba:",
         "results_header": "Resultados de la búsqueda",
         "catalog_header": "Catálogo de productos disponibles para consulta",
         "exact_matches_msg": "Se encontraron {n} coincidencia(s) exacta(s) o directa(s):",
@@ -160,7 +158,6 @@ I18N: dict[str, dict[str, str]] = {
         "all_categories": "All categories",
         "search_btn": "🔎 Search",
         "clear_btn": "🧹 Clear search / New search",
-        "examples_label": "Quick test examples:",
         "results_header": "Search Results",
         "catalog_header": "Catalog products available for lookup",
         "exact_matches_msg": "Found {n} exact or direct match(es):",
@@ -718,13 +715,6 @@ def limpiar_busqueda_callback() -> None:
     st.session_state.sku_seleccionado = None
 
 
-def aplicar_ejemplo_callback(ejemplo: str) -> None:
-    """Carga un término de ejemplo en el buscador y limpia la selección previa."""
-    st.session_state.input_busqueda = ejemplo
-    st.session_state.consulta_actual = ejemplo
-    st.session_state.sku_seleccionado = None
-
-
 def seleccionar_sku_callback(sku: str) -> None:
     """Guarda en `st.session_state` el SKU seleccionado por el usuario."""
     st.session_state.sku_seleccionado = sku
@@ -1034,19 +1024,6 @@ def main() -> None:
                 on_click=limpiar_busqueda_callback,
                 use_container_width=True,
             )
-
-        # Botones de ejemplos rápidos para facilitar pruebas en móvil y escritorio
-        st.caption(t["examples_label"])
-        cols_ejemplos = st.columns(len(EJEMPLOS))
-        for idx_ej, texto_ej in enumerate(EJEMPLOS):
-            with cols_ejemplos[idx_ej]:
-                st.button(
-                    f"`{texto_ej}`",
-                    key=f"btn_ej_{idx_ej}",
-                    use_container_width=True,
-                    on_click=aplicar_ejemplo_callback,
-                    args=(texto_ej,),
-                )
 
         # Actualizar estado de búsqueda cuando cambia el input o el filtro
         if ejecutar_busqueda or entrada_usuario != st.session_state.consulta_actual:
